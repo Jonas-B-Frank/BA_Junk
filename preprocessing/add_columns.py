@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import binom
 
-
+# write normal GT to allele count (if 2 ref, than 2,0 etc.)
 def get_normal_genotype(df: pd.DataFrame) -> str:
     gt = df["sample_control"].split(":")[0]
     if gt == "1/0" or gt == "0/1":
@@ -16,19 +16,25 @@ def get_normal_genotype(df: pd.DataFrame) -> str:
     if gt == "1/1":
         return "0,2"
 
+# write CNA from segment file, so that it becomes clear, which copy is altered / lost / gained. E.g. genotype segment file = 2:1, you don't know which allele is carried 2 times and which 1 time
+# genotype in the segment file means sth different! It means how many copies you have of each allele! 1:1 does not mean 2 times ALT, but one copy from both parents. There does not have to be any variant!
 def get_tumor_genotype_with_qualities(df: pd.DataFrame, purity: float) -> tuple[str, float]:
     gt = df["genotype"]
     
+    # exception to eliminate errors
     if (gt != gt):
         print("gt is NA")
         genotype = "no_gt"
         quality_score = float('nan')
+    # meaning that there are multiple clones
     elif "sub" in gt:
         genotype = "sub"
         quality_score = float('nan')
+    # main calculation done here
     else:
         x = int(gt.split(":")[0])
         y = int(gt.split(":")[1])
+        # if both copies (one of each parent) are present, the order does not matter
         if x == y:
             genotype = f"{x},{y}"
             quality_score = 0
@@ -38,47 +44,44 @@ def get_tumor_genotype_with_qualities(df: pd.DataFrame, purity: float) -> tuple[
                 n = df["sample_tumor"].split(":")[-2]
                 k = df["sample_tumor"].split(":")[-1]
 
+                # multiallelic variants are written to no_gt
                 if "," in n or "," in k:
                     print("no_gt because of multiallelic variant")
                     genotype = "no_gt"
                     quality_score = float('nan')
                 
+                # calculation of variant allele fraction
                 else:
                     n = int(n)
                     k = int(k)
                     tcn_tumor = float(df["TCN"])
+                    
+                    # special case for purity = 1, because log(0) cannot be calculated
+                    if purity == 1:
+                        purity == 0.9999
+    
+                    # case 1: x,y (ref, alt)
+                    vaf_1 = ((y * purity) + (1 - purity)) / ((tcn_tumor * purity) + (2 * (1 - purity)))
+                    prob_1 = binom.pmf(k=k, n=n, p=vaf_1)
+                    
+                    # case 2: y,x (ref, alt)
+                    vaf_2 = ((x * purity) + (1 - purity)) / ((tcn_tumor * purity) + (2 * (1 - purity)))
+                    prob_2 = binom.pmf(k=k, n=n, p=vaf_2)
 
-                    if purity == 1 and ((x == 0) or (y == 0)) and n > 0:
-                        if x == 0:
-                            ref = x
-                            alt = y
-                        else:
-                            alt = x
-                            ref = y
-                        quality_score = 0
+                    # calculating raw phred-scaled likelihoods
+                    pl_1 = -10 * math.log10(prob_1)
+                    pl_2 = -10 * math.log10(prob_2)
 
+                    # calculating quality score (capped at 99)
+                    quality_score = min(99, abs(pl_1 - pl_2))
+
+                    # print correct order of alleles, so that allele count matches to sample_tumor GT (SNP_GT) --> important for eQTLs later on
+                    if prob_1 > prob_2:
+                        ref = x
+                        alt = y
                     else:
-                        # case 1: x,y (ref, alt)
-                        vaf_1 = ((y * purity) + (1 - purity)) / ((tcn_tumor * purity) + (2 * (1 - purity)))
-                        prob_1 = binom.pmf(k=k, n=n, p=vaf_1)
-                        
-                        # case 2: y,x (ref, alt)
-                        vaf_2 = ((x * purity) + (1 - purity)) / ((tcn_tumor * purity) + (2 * (1 - purity)))
-                        prob_2 = binom.pmf(k=k, n=n, p=vaf_2)
-
-                        # calculating raw phred-scaled likelihoods
-                        pl_1 = -10 * math.log10(prob_1)
-                        pl_2 = -10 * math.log10(prob_2)
-
-                        # calculating quality score (capped at 99)
-                        quality_score = min(99, abs(pl_1 - pl_2))
-
-                        if prob_1 > prob_2:
-                            ref = x
-                            alt = y
-                        else:
-                            ref = y
-                            alt = x
+                        ref = y
+                        alt = x
                     
                     genotype = f"{ref},{alt}"
                 
@@ -134,7 +137,7 @@ def main(header_file: str, usecols_file: str, snv_file_path: str, output_path: s
     df["reads_tumor"] = df.apply(get_total_read_count_tumor, axis=1)
 
     # add dummy position columns in col 3
-    df["position_dummy"] = df["POS"]
+    df["position_dummy"] = df["POS"]+1
     df_sorted = df[["#CHROM", "POS", "position_dummy"] + usecols_list[2:] + ["normal_genotype", "tumor_genotype", "quality_score", "reads_normal", "reads_tumor"]]
 
     # write df to csv
