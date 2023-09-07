@@ -118,7 +118,7 @@ def main(header_file: str, usecols_file: str, snv_file_path: str, output_path: s
     usecols_list = [c.strip("\n") for c in usecols_list]
 
     df = pd.read_csv(snv_file_path, sep='\t', names=header_names, usecols=usecols_list, low_memory=False, compression="gzip")
-    df_info = pd.read_csv("/home/junkhann/bioinf-d/Data/mmml/cnv_analysis/Identitymatrix_merged_additionalInfo.tsv", delimiter="\t")
+    df_info = pd.read_csv("../Identitymatrix_merged_additionalInfo.tsv", delimiter="\t")
     PID = df.PID.values[0]    
     purity = df_info.set_index("PID").loc[str(PID), "purity"]
     print("PID:" + str(PID) + ", purity:" + str(purity))

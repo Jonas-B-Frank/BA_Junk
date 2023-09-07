@@ -7,8 +7,8 @@ QUAL
 FILTER
 INFO
 FORMAT
-sample_control_4100049X
-sample_tumor_4100049X
+sample_control
+sample_tumor
 DBSNP
 1K_GENOMES
 PHASE3_1K_GENOMES
