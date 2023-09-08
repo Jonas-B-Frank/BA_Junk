@@ -137,7 +137,8 @@ def main(header_file: str, usecols_file: str, snv_file_path: str, output_path: s
     df["reads_tumor"] = df.apply(get_total_read_count_tumor, axis=1)
 
     # add dummy position columns in col 3
-    df["position_dummy"] = df["POS"]+1
+    df["position_dummy"] = df["POS"]
+    df["POS"] = df["POS"]-1
     df_sorted = df[["#CHROM", "POS", "position_dummy"] + usecols_list[2:] + ["normal_genotype", "tumor_genotype", "quality_score", "reads_normal", "reads_tumor"]]
 
     # write df to csv
