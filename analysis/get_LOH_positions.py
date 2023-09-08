@@ -33,6 +33,6 @@ def main(all_patients_file: str, outfile: str):
     write_LOH_positions(all_patients_file, outfile)
 
 if __name__ == "__main__":
-    all_patients_file = "/home/junkhann/daten/mmml_all_patients_extra_columns.vcf.gz"
-    outfile = "/home/junkhann/daten/LOH_positions_mmml.vcf.gz"
+    all_patients_file = "mmml_all_patients_extra_columns.vcf.gz"
+    outfile = "LOH_positions_mmml.vcf.gz"
     main(all_patients_file, outfile)
