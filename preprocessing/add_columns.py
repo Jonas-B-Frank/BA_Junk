@@ -58,7 +58,7 @@ def get_tumor_genotype_with_qualities(df: pd.DataFrame, purity: float) -> tuple[
                     
                     # special case for purity = 1, because log(0) cannot be calculated
                     if purity == 1:
-                        purity == 0.9999
+                        purity = 0.9999
     
                     # case 1: x,y (ref, alt)
                     vaf_1 = ((y * purity) + (1 - purity)) / ((tcn_tumor * purity) + (2 * (1 - purity)))
